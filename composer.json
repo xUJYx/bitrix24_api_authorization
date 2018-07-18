@@ -12,6 +12,7 @@
       "role": "Developer"
     }
   ],
-  "require": {
+  "autoload": {
+    "classmap": ["src/"]
   }
 }
