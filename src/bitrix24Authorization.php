@@ -1,111 +1,213 @@
 <?php
-namespace bitrix24Authorization;
+namespace Bitrix24Authorization;
 
-
-class bitrix24Authorization
+class Bitrix24Authorization
 {
+    public $bitrix24_access;
+    private $app_scope;
+    private $app_id;
+    private $app_secret;
+    private $bitrix24_domain;
+    private $bitrix24_login;
+    private $bitrix24_password;
 
-    private $config;
-    public $b24_access;
-    public $execute;
-
-    public function __construct($B24App)
-    {
-        $config = require_once (__DIR__ . '/config.php');
-        $this->config = $config['production'];
-        $this->b24_access = $this->authorize();
-        $this->execute = $this->initialize($B24App);
-    }
-
+    /**
+     * Method which returns bitrix24 authorization information in automatic mode.
+     * @return array
+     * @throws \Exception
+     */
     private function authorize()
     {
-        $_url = 'https://'.$this->config['domain'];
-        $ch = curl_init();
-        curl_setopt($ch, CURLOPT_URL, $_url);
-        curl_setopt($ch, CURLOPT_HEADER, true);
-        curl_setopt($ch, CURLOPT_FOLLOWLOCATION, false);
-        curl_setopt($ch, CURLOPT_RETURNTRANSFER, TRUE);
-        $res = curl_exec($ch);
+        $curl = curl_init();
+        curl_setopt($curl, CURLOPT_URL, $this->bitrix24_domain);
+        curl_setopt($curl, CURLOPT_HEADER, true);
+        curl_setopt($curl, CURLOPT_FOLLOWLOCATION, false);
+        curl_setopt($curl, CURLOPT_RETURNTRANSFER, true);
+        $curl_response = curl_exec($curl);
 
-        $l = '';
-        if(preg_match('#Location: (.*)#', $res, $r)) {
-            $l = trim($r[1]);
-        }
+        $bitrix_respond_url = $this->getRespondUrlFromCurl($curl_response);
 
-        curl_setopt($ch, CURLOPT_URL, $l);
-        $res = curl_exec($ch);
-        preg_match('#name="backurl" value="(.*)"#', $res, $math);
+        curl_setopt($curl, CURLOPT_URL, $bitrix_respond_url);
+        $curl_response = curl_exec($curl);
+
+        if(!preg_match('~name="backurl" value="(.+)"~', $curl_response, $bitrix_auth_backurl))
+            throw new \Exception('ERROR IN GETTING BITRIX AUTH BACKURL');
 
         $post = http_build_query([
             'AUTH_FORM' => 'Y',
             'TYPE' => 'AUTH',
-            'backurl' => $math[1],
-            'USER_LOGIN' => $this->config['login'],
-            'USER_PASSWORD' => $this->config['password'],
+            'backurl' => $bitrix_auth_backurl[1],
+            'USER_LOGIN' => $this->bitrix24_login,
+            'USER_PASSWORD' => $this->bitrix24_password,
             'USER_REMEMBER' => 'Y'
         ]);
 
-        curl_setopt($ch, CURLOPT_URL, 'https://www.bitrix24.net/auth/');
-        curl_setopt($ch, CURLOPT_POST, true);
-        curl_setopt($ch, CURLOPT_POSTFIELDS, $post);
-        $res = curl_exec($ch);
+        curl_setopt($curl, CURLOPT_URL, 'https://www.bitrix24.net/auth/');
+        curl_setopt($curl, CURLOPT_POST, true);
+        curl_setopt($curl, CURLOPT_POSTFIELDS, $post);
+        curl_exec($curl);
 
-        $l = '';
-        if(preg_match('#Location: (.*)#', $res, $r)) {
-            $l = trim($r[1]);
-        }
+        curl_setopt($curl, CURLOPT_URL, $this->bitrix24_domain . '/oauth/authorize/?response_type=code&client_id=' . $this->app_id);
+        $curl_response = curl_exec($curl);
 
-        curl_setopt($ch, CURLOPT_URL, $l);
-        $res = curl_exec($ch);
+        $bitrix_respond_url = $this->getRespondUrlFromCurl($curl_response);
 
-        $l = '';
-        if(preg_match('#Location: (.*)#', $res, $r)) {
-            $l = trim($r[1]);
-        }
+        if(!preg_match('~code=([^\&]+)~', $bitrix_respond_url, $code))
+            throw new \Exception('NO PARAMETER ~CODE~ IN BITRIX24 ANSWER');
 
-        curl_setopt($ch, CURLOPT_URL, $l);
-        $res = curl_exec($ch);
-        curl_setopt($ch, CURLOPT_URL, 'https://'.$this->config['domain'].'/oauth/authorize/?response_type=code&client_id='.$this->config['client_id']);
-        $res = curl_exec($ch);
+        curl_setopt($curl, CURLOPT_URL, $this->bitrix24_domain . '/oauth/token/?grant_type=authorization_code&client_id=' . $this->app_id . '&client_secret=' . $this->app_secret . '&code=' .  $code[1] . '&scope=' . $this->app_scope);
+        curl_setopt($curl, CURLOPT_HEADER, false);
+        $curl_response = curl_exec($curl);
 
-        $l = '';
-        if(preg_match('#Location: (.*)#', $res, $r)) {
-            $l = trim($r[1]);
-        }
-        preg_match('/code=(.*)&do/', $l, $code);
-        $code = $code[1];
+        curl_close($curl);
 
-        curl_setopt($ch, CURLOPT_URL, 'https://'.$this->config['domain'].'/oauth/token/?grant_type=authorization_code&client_id='.$this->config['client_id'].'&client_secret='.$this->config['client_secret'].'&code='.$code.'&scope=' .$this->config['scope']);
-        curl_setopt($ch, CURLOPT_HEADER, false);
-        $res = curl_exec($ch);
-
-        curl_close($ch);
-
-        return json_decode($res);
+        $this->bitrix24_access = json_decode($curl_response);
+        return $this->bitrix24_access;
     }
 
+    /**
+     * Method which returns bitrix24 chain URL (Location:) from cURL response
+     * @param $curl_response
+     * @return string
+     * @throws \Exception
+     */
+    private function getRespondUrlFromCurl($curl_response)
+    {
+        if(!preg_match('~Location: (.+)~', $curl_response, $result)) {
+            throw new \Exception("THERE IS NO ~LOCATION~ IN CURL ANSWER... <br>\r\nINPUT CURL BODY:  <br>\r\n{$curl_response}");
+        }
+
+        $bitrix_respond_url = trim($result[1]);
+        return $bitrix_respond_url;
+    }
+
+    /**
+     * Method which checks, is bitrix24 access token still valid
+     * @return bool
+     */
     public function is_authorize()
     {
-        if($this->b24_access->expires > time())
+        if($this->bitrix24_access->expires > time())
             return true;
 
         return false;
     }
 
-    private function initialize($B24App)
+    /**
+     * Method which checks, is required variables has been defined for further valid script work
+     * @return bool
+     * @throws \Exception
+     */
+    private function checkAuthorizationVars ()
     {
+        $error = '';
+        $error .= empty($this->app_scope) ? "\r\napp_scope with 'setApplicationScope' method <br>" : '';
+        $error .= empty($this->app_id) ? "\r\napp_id with 'setApplicationId' method <br>" : '';
+        $error .= empty($this->app_secret) ? "\r\napp_secret with 'setApplicationSecret' method <br>" : '';
+        $error .= empty($this->bitrix24_domain) ? "\r\nbitrix24_domain with 'setBitrix24Domain' method <br>" : '';
+        $error .= empty($this->bitrix24_login) ? "\r\nbitrix24_login with 'setBitrix24Login' method <br>" : '';
+        $error .= empty($this->bitrix24_password) ? "\r\nbitrix24_password with 'setBitrix24Password' method <br>" : '';
+
+        if(!empty($error)) throw new \Exception('You need to set this variables to get authorization data: <br>' . $error);
+        return true;
+    }
+
+    /**
+     * Method which returns bitrix24 authorization data or authorized Bitrix24 object if using mesilov/bitrix24-php-sdk
+     * @param Bitrix24|null $B24App
+     * @return Bitrix24|object
+     */
+    public function initialize(Bitrix24 $B24App = null)
+    {
+        try {
+            $this->checkAuthorizationVars();
+        } catch (\Exception $error) {
+            die($error->getMessage());
+        }
+
         if(!$this->is_authorize())
-            $this->authorize();
+            try {
+                $this->authorize();
+            } catch (\Exception $error) {
+                die($error->getMessage());
+            }
 
-        $B24App->setApplicationScope(array($this->config['scope']));
-        $B24App->setApplicationId($this->config['client_id']);
-        $B24App->setApplicationSecret($this->config['client_secret']);
+        if(is_object($B24App)) {
+            $B24App->setApplicationScope($this->app_scope);
+            $B24App->setApplicationId($this->app_id);
+            $B24App->setApplicationSecret($this->app_secret);
+            $B24App->setDomain($this->bitrix24_domain);
+            $B24App->setMemberId($this->bitrix24_access->member_id);
+            $B24App->setAccessToken($this->bitrix24_access->access_token);
+            $B24App->setRefreshToken($this->bitrix24_access->refresh_token);
 
-        $B24App->setDomain($this->config['domain']);
-        $B24App->setMemberId($this->b24_access->member_id);
-        $B24App->setAccessToken($this->b24_access->access_token);
-        $B24App->setRefreshToken($this->b24_access->refresh_token);
+            return $B24App;
+        }
 
-        return $B24App;
+        return $this->bitrix24_access;
+    }
+
+
+    /**
+     * @param $application_scope
+     */
+    public function setApplicationScope($application_scope)
+    {
+        $application_scope = str_replace(' ', '', $application_scope);
+        $this->app_scope = $application_scope;
+    }
+
+    /**
+     * @param $application_id
+     */
+    public function setApplicationId($application_id)
+    {
+        $this->app_id = $application_id;
+    }
+
+    /**
+     * @param $application_secret
+     */
+    public function setApplicationSecret($application_secret)
+    {
+        $this->app_secret = $application_secret;
+    }
+
+    /**
+     * @param $bitrix24_domain
+     */
+    public function setBitrix24Domain($bitrix24_domain)
+    {
+        $bitrix24_domain = preg_replace('~https?:\/\/([w]{3})?~', '', $bitrix24_domain);
+        $bitrix24_domain = 'https://' . $bitrix24_domain;
+
+        $this->bitrix24_domain = $bitrix24_domain;
+    }
+
+    /**
+     * @param $bitrix24_user_login
+     */
+    public function setBitrix24Login($bitrix24_user_login)
+    {
+        $this->bitrix24_login = $bitrix24_user_login;
+    }
+
+    /**
+     * @param $bitrix24_user_password
+     */
+    public function setBitrix24Password($bitrix24_user_password)
+    {
+        $this->bitrix24_password = $bitrix24_user_password;
+    }
+
+    /**
+     * Method which returns private properties if user wants to use them directly
+     * @param $name
+     * @return mixed
+     */
+    public function __get($name)
+    {
+        if(isset($this->{$name}))
+            return $this->{$name};
     }
 }
