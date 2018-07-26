@@ -19,7 +19,7 @@ class Bitrix24Authorization
     private function authorize()
     {
         $curl = curl_init();
-        curl_setopt($curl, CURLOPT_URL, $this->bitrix24_domain);
+        curl_setopt($curl, CURLOPT_URL, 'https://' . $this->bitrix24_domain);
         curl_setopt($curl, CURLOPT_HEADER, true);
         curl_setopt($curl, CURLOPT_FOLLOWLOCATION, false);
         curl_setopt($curl, CURLOPT_RETURNTRANSFER, true);
@@ -47,7 +47,7 @@ class Bitrix24Authorization
         curl_setopt($curl, CURLOPT_POSTFIELDS, $post);
         curl_exec($curl);
 
-        curl_setopt($curl, CURLOPT_URL, $this->bitrix24_domain . '/oauth/authorize/?response_type=code&client_id=' . $this->app_id);
+        curl_setopt($curl, CURLOPT_URL, 'https://' . $this->bitrix24_domain . '/oauth/authorize/?response_type=code&client_id=' . $this->app_id);
         $curl_response = curl_exec($curl);
 
         $bitrix_respond_url = $this->getRespondUrlFromCurl($curl_response);
@@ -55,7 +55,7 @@ class Bitrix24Authorization
         if(!preg_match('~code=([^\&]+)~', $bitrix_respond_url, $code))
             throw new \Exception('NO PARAMETER ~CODE~ IN BITRIX24 ANSWER');
 
-        curl_setopt($curl, CURLOPT_URL, $this->bitrix24_domain . '/oauth/token/?grant_type=authorization_code&client_id=' . $this->app_id . '&client_secret=' . $this->app_secret . '&code=' .  $code[1] . '&scope=' . $this->app_scope);
+        curl_setopt($curl, CURLOPT_URL, 'https://' . $this->bitrix24_domain . '/oauth/token/?grant_type=authorization_code&client_id=' . $this->app_id . '&client_secret=' . $this->app_secret . '&code=' .  $code[1] . '&scope=' . $this->app_scope);
         curl_setopt($curl, CURLOPT_HEADER, false);
         $curl_response = curl_exec($curl);
 
@@ -87,7 +87,7 @@ class Bitrix24Authorization
      */
     public function is_authorize()
     {
-        if($this->bitrix24_access->expires > time())
+        if(!empty($this->bitrix24_access) && $this->bitrix24_access->expires > time())
             return true;
 
         return false;
@@ -117,7 +117,7 @@ class Bitrix24Authorization
      * @param Bitrix24|null $B24App
      * @return Bitrix24|object
      */
-    public function initialize(Bitrix24 $B24App = null)
+    public function initialize(\Bitrix24\Bitrix24 $B24App = null)
     {
         try {
             $this->checkAuthorizationVars();
@@ -133,7 +133,7 @@ class Bitrix24Authorization
             }
 
         if(is_object($B24App)) {
-            $B24App->setApplicationScope($this->app_scope);
+            $B24App->setApplicationScope(array($this->app_scope));
             $B24App->setApplicationId($this->app_id);
             $B24App->setApplicationSecret($this->app_secret);
             $B24App->setDomain($this->bitrix24_domain);
@@ -179,7 +179,6 @@ class Bitrix24Authorization
     public function setBitrix24Domain($bitrix24_domain)
     {
         $bitrix24_domain = preg_replace('~https?:\/\/([w]{3})?~', '', $bitrix24_domain);
-        $bitrix24_domain = 'https://' . $bitrix24_domain;
 
         $this->bitrix24_domain = $bitrix24_domain;
     }
