@@ -10,9 +10,17 @@
       "name": "Ievgenii Gardysh",
       "email": "ujy@ukr.net",
       "role": "Developer"
+    },
+    {
+      "name": "Oleg Pravdin",
+      "email": "opravdin@gmail.com",
+      "role": "Developer"
     }
   ],
   "autoload": {
     "classmap": ["src/"]
+  },
+  "require": {
+    "mervick/curl-helper": "^1.1"
   }
 }
