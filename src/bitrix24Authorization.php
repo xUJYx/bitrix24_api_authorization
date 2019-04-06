@@ -254,7 +254,7 @@ class Bitrix24Authorization
      */
     private function getBitrixSessionIdFromCurl($curl_response)
     {
-        if(!preg_match('~\'bitrix_sessid\':\'([[\d\w]]+)\'~', $curl_response, $result)) {
+        if(!preg_match('~\'bitrix_sessid\':\'([\d\w]+)\'~', $curl_response, $result)) {
             throw new \Exception("THERE IS NO ~bitrix_sessid~ IN CURL ANSWER... <br>\r\nINPUT CURL BODY:  <br>\r\n{$curl_response}");
         }
 
