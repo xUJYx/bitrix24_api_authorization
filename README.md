@@ -5,7 +5,8 @@ Get access token for Bitrix24 API in automatic way
 [![Latest Stable Version](https://poser.pugx.org/ujy/bitrix24_api_authorization/v/stable)](https://packagist.org/packages/ujy/bitrix24_api_authorization)
 [![Latest Unstable Version](https://poser.pugx.org/ujy/bitrix24_api_authorization/v/unstable)](https://packagist.org/packages/ujy/bitrix24_api_authorization)
 
- 
+##### *Big thanks to [opravdin](https://github.com/opravdin/) for the global class FIX which returned class back to life after Bitrix24 team changed their login page UI in February 2019...*
+
 #### *Read this document on other languages: [English](README.md), [Русский](README.ru.md).*
 
 Tiny class to make Bitrix24 authorization process automated. Just define few vars and get Bitrix24 access token (session token) in automatic way.
@@ -119,8 +120,11 @@ Bugs and feature request are tracked on [GitHub](https://github.com/xUJYx/bitrix
 Current class is licensed under the MIT License - see the [LICENSE](LICENSE) file for details
 
 ## Author
-Ievgenii Gardysh - <ujy@ukr.net><br />
+Ievgenii Gardysh - <ujy@ukr.net> / <ghenia.hard@gmail.com><br />
+Oleg Pravdin (class rewriter after bitrix UI update) - <opravdin@gmail.com><br />
+
 Thanks to Sergey from [afinogen.su](https://afinogen.su/) for base version of script which gets access token in automated way.
 
 ## Have any questions? ##
-email: <ujy@ukr.net> / <ghenia.hard@gmail.com>
+email: <ujy@ukr.net> / <ghenia.hard@gmail.com><br />
+email: opravdin@gmail.com

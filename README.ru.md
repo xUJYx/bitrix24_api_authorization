@@ -5,6 +5,7 @@
 [![Latest Stable Version](https://poser.pugx.org/ujy/bitrix24_api_authorization/v/stable)](https://packagist.org/packages/ujy/bitrix24_api_authorization)
 [![Latest Unstable Version](https://poser.pugx.org/ujy/bitrix24_api_authorization/v/unstable)](https://packagist.org/packages/ujy/bitrix24_api_authorization)
 
+##### *Большое спасибо [opravdin](https://github.com/opravdin/) за глобальные правки класса, которые вернули его к рабочему состоянию (после изменений интерфейса логина товарищами из Bitrix24 в феврале 2019)...*
  
 #### *Вы можете прочитать этот файл на других языках: [English](README.md), [Русский](README.ru.md).*
 
@@ -119,8 +120,11 @@ var_dump($arCurrentB24User);
 Класс распространяется по лицензии MIT - более детально читайте в файле [LICENSE](LICENSE)
 
 ## Автор
-Евгений гардыш - <ujy@ukr.net><br />
+Евгений Гардыш - <ujy@ukr.net> / <ghenia.hard@gmail.com><br />
+Олег Правдин (обновление класса после изменения UI bitrix24) - <opravdin@gmail.com><br /><br />
 Также выражаю благодарность Сергею  [afinogen.su](https://afinogen.su/) за базовую версию скрипта получения токена авторизации в автоматическом режиме.
 
 ## Остались вопросы? ##
-Направляйте их сюда: <ujy@ukr.net> / <ghenia.hard@gmail.com>
+Направляйте их сюда: <br />
+<ujy@ukr.net> / <ghenia.hard@gmail.com><br />
+<opravdin@gmail.com><br />
