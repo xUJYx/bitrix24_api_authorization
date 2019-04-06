@@ -87,7 +87,7 @@ class Bitrix24Authorization
      */
     public function is_authorize()
     {
-        if(!empty($this->bitrix24_access) && $this->bitrix24_access->expires > time())
+        if(!empty($this->bitrix24_access) && $this->bitrix24_access['expires'] > time())
             return true;
 
         return false;
@@ -137,9 +137,9 @@ class Bitrix24Authorization
             $B24App->setApplicationId($this->app_id);
             $B24App->setApplicationSecret($this->app_secret);
             $B24App->setDomain($this->bitrix24_domain);
-            $B24App->setMemberId($this->bitrix24_access->member_id);
-            $B24App->setAccessToken($this->bitrix24_access->access_token);
-            $B24App->setRefreshToken($this->bitrix24_access->refresh_token);
+            $B24App->setMemberId($this->bitrix24_access['member_id']);
+            $B24App->setAccessToken($this->bitrix24_access['access_token']);
+            $B24App->setRefreshToken($this->bitrix24_access['refresh_token']);
 
             return $B24App;
         }
