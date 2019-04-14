@@ -82,12 +82,12 @@ $mesilov_obj = new \Bitrix24\Bitrix24();
 $b24auth = new \Bitrix24Authorization\Bitrix24Authorization();
 
 // Заменить на свои данные авторизации
-$B24obj->setApplicationId('local.1b1231b1xfa234.12352734'); // Получаем при регистрации приложения на Вашем портале Bitrix24
-$B24obj->setApplicationSecret('q3vOqweJSasd1wDAkdL3qq13rqKDe8ffGMlFsI8Ykpasld4n0w'); // Получаем при регистрации приложения на Вашем портале Bitrix24
-$B24obj->setApplicationScope('crm,user,telephony'); // Перечисляем объекты Bitrix24 с которыми хотим работать, в приложении они также должны быть выбраны
-$B24obj->setBitrix24Domain('your-site.bitrix24.ru'); // Адрес Вашего портала Bitrix24
-$B24obj->setBitrix24Login('your_login@gmail.com'); // Логин реального пользователя Вашего портала Bitrix24
-$B24obj->setBitrix24Password('your_password'); // Пароль реального пользователя Вашего портала Bitrix24
+$b24auth->setApplicationId('local.1b1231b1xfa234.12352734'); // Получаем при регистрации приложения на Вашем портале Bitrix24
+$b24auth->setApplicationSecret('q3vOqweJSasd1wDAkdL3qq13rqKDe8ffGMlFsI8Ykpasld4n0w'); // Получаем при регистрации приложения на Вашем портале Bitrix24
+$b24auth->setApplicationScope('crm,user,telephony'); // Перечисляем объекты Bitrix24 с которыми хотим работать, в приложении они также должны быть выбраны
+$b24auth->setBitrix24Domain('your-site.bitrix24.ru'); // Адрес Вашего портала Bitrix24
+$b24auth->setBitrix24Login('your_login@gmail.com'); // Логин реального пользователя Вашего портала Bitrix24
+$b24auth->setBitrix24Password('your_password'); // Пароль реального пользователя Вашего портала Bitrix24
 
 // Инициализация
 $mesilov_auth_obj = $b24auth->initialize($mesilov_obj);
