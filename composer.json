@@ -1,6 +1,7 @@
 {
   "name": "ujy/bitrix24_api_authorization",
   "description": "Authorization class to easy get Bitrix24 Access Tokens for use in API",
+  "version": "0.1.2",
   "keywords": [
     "Bitrix24",
     "Access",
