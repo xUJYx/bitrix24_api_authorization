@@ -3,7 +3,7 @@ namespace Bitrix24Authorization;
 
 use CurlHelper;
 
-class Bitrix24Authorization
+class Bitrix24AuthorizationReturn
 {
     public $bitrix24_access;
     private $app_scope;
@@ -37,16 +37,20 @@ class Bitrix24Authorization
         // Имитируем проверку логина и пароля
         $b24_login_post_data = [
             'SITE_ID' => 's1',
-            'sessid' => $b24_auth_sessid,
+            'sessid' => $b24_auth_sessid['bitrix_session_id'],
             'login' => $this->bitrix24_login,
             'password' => $this->bitrix24_password,
             'remember' => '1'
         ];
+
+
         $b24_auth_response = CurlHelper::factory('https://auth2.bitrix24.net/bitrix/services/main/ajax.php?action=b24network.authorize.checkLogin')
             ->setPostFields($b24_login_post_data)
             ->setCookies($b24_auth_cookies)
             ->exec();
+
         $b24_login_check_data = json_decode($b24_auth_response['content'], true);
+
         if (!is_array($b24_login_check_data) || !array_key_exists('status', $b24_login_check_data) || $b24_login_check_data['status'] != 'success') {
             throw new \Exception('Login check fails at Bitrix24 portal!');
         }
@@ -56,6 +60,7 @@ class Bitrix24Authorization
             ->setPostFields($b24_login_post_data)
             ->setCookies($b24_auth_cookies)
             ->exec();
+
         $b24_auth_cookies = array_merge($b24_auth_cookies, $b24_auth_response['cookies']);
 
         // Переходим по ссылке авторизации с новыми cookies
@@ -66,36 +71,43 @@ class Bitrix24Authorization
         if (
             !array_key_exists('X-User-Id', $b24_auth_response)
         ) {
-            throw new \Exception('Password check fails at Bitrix24 portal!');
+            return [
+                'error' => true,
+                'error_message' => 'Password check fails at Bitrix24 portal!',
+            ];
         }
 
         // Dыдергиваем js-redirect из body, который редиректит нас на портал компании
         $b24_js_domain_backurl = $this->getRespondUrlFromCurl($b24_auth_response['content']);
-
+        if ($b24_js_domain_backurl["error"] == true) {
+            return $b24_js_domain_backurl;
+        }
         // Переходим на свой портал компании и получаем ссылку-редирект для авторизации на портале компании
-        $b24_auth_response = CurlHelper::factory($b24_js_domain_backurl)
+        $b24_auth_response = CurlHelper::factory($b24_js_domain_backurl['bitrix_respond_url'])
             ->setCookies($b24_domain_cookies)
             ->exec();
         $b24_domain_cookies = array_merge($b24_domain_cookies, $b24_auth_response['cookies']);
 
         // Собираем ссылку аторизации на своём портале компании
         $b24_domain_backurl_uri = $this->getRespondUrlFromCurl($b24_auth_response['content']);
-        $b24_js_domain_backurl = 'https://' . $this->bitrix24_domain . $b24_domain_backurl_uri;
+        $b24_js_domain_backurl = 'https://' . $this->bitrix24_domain . $b24_domain_backurl_uri['bitrix_respond_url'];
 
         // Переходим по ссылке своего портала для получения параметра CODE
         $b24_auth_response = CurlHelper::factory($b24_js_domain_backurl)
             ->setCookies($b24_domain_cookies)
             ->follow(false)
             ->exec();
-
         $b24_auth_code = $this->getBitrixAuthCodeFromCurl($b24_auth_response['headers']['Location']);
+        if ($b24_auth_code["error"] == true) {
+            return $b24_auth_code;
 
+        }
         // По полученному CODE формируем запрос для получения ACCESS TOKEN`а
         $get = [
             'grant_type' => 'authorization_code',
             'client_id' => $this->app_id,
             'client_secret' => $this->app_secret,
-            'code' => $b24_auth_code,
+            'code' => $b24_auth_code['code'],
             'scope' => $this->app_scope
         ];
 
@@ -105,23 +117,32 @@ class Bitrix24Authorization
             ->exec();
 
         $this->bitrix24_access = $b24_auth_response['data'];
+        $this->bitrix24_access['error'] = false;
+
         return $this->bitrix24_access;
+
     }
 
     /**
      * Method which returns bitrix24 chain URL  from cURL response
      * @param $curl_response
-     * @return string
+     * @return array
      * @throws \Exception
      */
     private function getRespondUrlFromCurl($curl_response)
     {
         if (!preg_match('~window\.location(\.href)?[\s\=]{1,3}\'(.+?)\'~m', $curl_response, $result)) {
-            throw new \Exception("THERE IS NO ~bitrix24 chain URL~ IN CURL ANSWER... <br>\r\nINPUT CURL BODY:  <br>\r\n{$curl_response}");
+            return [
+                'error' => true,
+                'error_message' => 'No ~bitrix24 chain URL~ in CURL ANSWER...'
+            ];
         }
 
         $bitrix_respond_url = trim($result[2]);
-        return $bitrix_respond_url;
+        return [
+            'error' => false,
+            'bitrix_respond_url' => $bitrix_respond_url
+        ];
     }
 
     /**
@@ -130,8 +151,9 @@ class Bitrix24Authorization
      */
     public function is_authorize()
     {
-        if (!empty($this->bitrix24_access) && $this->bitrix24_access['expires'] > time())
+        if (!empty($this->bitrix24_access) && $this->bitrix24_access['expires'] > time()) {
             return true;
+        }
 
         return false;
     }
@@ -159,7 +181,7 @@ class Bitrix24Authorization
     /**
      * Method which returns bitrix24 authorization data or authorized Bitrix24 object if using mesilov/bitrix24-php-sdk
      * @param Bitrix24|null $B24App
-     * @return Bitrix24|object
+     * @return Bitrix24|object|array
      */
     public function initialize(\Bitrix24\Bitrix24 $B24App = null)
     {
@@ -170,14 +192,14 @@ class Bitrix24Authorization
         }
 
 
-        if (!$this->is_authorize())
-            try {
-                $this->authorize();
-            } catch (\Exception $error) {
-                die($error->getMessage());
-            }
+        if (!$this->is_authorize()) {
+            $authorize = $this->authorize();
+        }
+        if ($authorize["error"] == true) {
 
-        if (is_object($B24App)) {
+            return $authorize;
+        }
+        if (is_object($B24App) && $authorize["error"] == false) {
             $B24App->setApplicationScope(array($this->app_scope));
             $B24App->setApplicationId($this->app_id);
             $B24App->setApplicationSecret($this->app_secret);
@@ -257,31 +279,45 @@ class Bitrix24Authorization
     /**
      * Method which returns bitrix24 SessionId from cURL response
      * @param $curl_response
-     * @return string
+     * @return array
      * @throws \Exception
      */
     private function getBitrixSessionIdFromCurl($curl_response)
     {
         if (!preg_match('~\'bitrix_sessid\':\'([\d\w]+)\'~', $curl_response, $result)) {
-            throw new \Exception("THERE IS NO ~bitrix_sessid~ IN CURL ANSWER... <br>\r\nINPUT CURL BODY:  <br>\r\n{$curl_response}");
+            return [
+                "error" => true,
+                "error_message" => "NO ~bitrix_sessid~ IN CURL ANSWER"
+            ];
+            // throw new \Exception("THERE IS NO ~bitrix_sessid~ IN CURL ANSWER... <br>\r\nINPUT CURL BODY:  <br>\r\n{$curl_response}");
         }
 
         $bitrix_session_id = trim($result[1]);
-        return $bitrix_session_id;
+        return [
+            "error" => false,
+            "bitrix_session_id" => $bitrix_session_id
+        ];
     }
 
     /**
      * Method which returns bitrix24 CODE parameter from cURL response
      * @param $curl_response
-     * @return string
+     * @return array
      * @throws \Exception
      */
     private function getBitrixAuthCodeFromCurl($curl_response)
     {
-        if (!preg_match('~code=([^\&]+)~', $curl_response, $b24_auth_code))
-            throw new \Exception("NO PARAMETER ~CODE~ IN BITRIX24 ANSWER: ... <br>\r\nINPUT CURL BODY:  <br>\r\n{$curl_response}");
-        $b24_auth_code = $b24_auth_code[1];
+        if (!preg_match('~code=([^\&]+)~', $curl_response, $b24_auth_code)) {
+            return [
+                "error" => true,
+                "error_message" => "NO PARAMETER ~CODE~ IN CURL ANSWER"
+            ];
+        }
 
-        return $b24_auth_code;
+        $b24_auth_code = $b24_auth_code[1];
+        return [
+            "error" => false,
+            "code" => $b24_auth_code
+        ];
     }
 }
